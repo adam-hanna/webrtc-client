@@ -130,6 +130,19 @@ Client.prototype.createPeerConnection = function (id) {
     pc.stream = null
     self.emit('stream remove', event.stream, id)
   }
+  // For now only think about Chrome Canary
+  if (!navigator.mozGetUserMedia) {
+    var label = 'webrtc'
+    var channel = pc.channel = pc.createDataChannel(label)
+    channel.onopen = function () {}
+    channel.onclose = function () {}
+    channel.onmessage = function (message) {
+      self.emit('message', message)
+    }
+    channel.onerror = function (err) {
+      self.emit('error', err)
+    }
+  }
   this.peerConnections[id] = pc
   return pc;
 }
@@ -206,6 +219,25 @@ Client.prototype.play = function () {
 Client.prototype.toggle = function (tracks, enabled) {
   for (var i = 0; i < tracks.length; i += 1) {
     tracks[i].enabled = enabled
+  }
+}
+
+Client.prototype.sendMessage = function (id, message) {
+  if (message === undefined) {
+    message = id
+    for (var id in this.peerConnections) {
+      if (this.peerConnections.hasOwnProperty(id)) {
+        var pc = this.peerConnections[id]
+        if (pc.channel) {
+          pc.channel.send(message)
+        }
+      }
+    }
+    return
+  }
+  var pc = this.peerConnections[id]
+  if (pc.channel) {
+    pc.channel.send(message)
   }
 }
 
